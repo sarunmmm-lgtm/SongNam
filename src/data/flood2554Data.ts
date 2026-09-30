@@ -281,6 +281,156 @@ export const BENCHMARKS_2554: Record<string, Flood2554Benchmark> = {
     historicalContext:
       'น้ำล้นสปิลเวย์ 102.1% ไหลหลากเข้าท่วมพื้นที่ อ.ด่านช้าง และ อ.เดิมบางนางบวช จ.สุพรรณบุรี',
   },
+  'res-krasiao': {
+    year: 2554,
+    peakStorageMcm: 245,
+    peakStoragePercent: 102.1,
+    peakOutflowCms: 120,
+    peakDateThai: 'ตุลาคม 2554',
+    spillwayOverflow: true,
+    historicalContext:
+      'น้ำล้นสปิลเวย์ 102.1% ไหลหลากเข้าท่วมพื้นที่ อ.ด่านช้าง และ อ.เดิมบางนางบวช จ.สุพรรณบุรี',
+  },
+  'dam-phet': {
+    year: 2554,
+    peakStorageMcm: 5.6,
+    peakStoragePercent: 100.0,
+    peakOutflowCms: 220,
+    peakDateThai: 'ตุลาคม 2554',
+    spillwayOverflow: true,
+    historicalContext:
+      'เขื่อนเพชรต้องเร่งระบายน้ำผ่านเขื่อนลงสู่แม่น้ำเพชรบุรีและผันเข้าคลองระบายน้ำ D9 เพื่อระบายออกสู่อ่าวไทยอย่างเต็มกำลัง',
+  },
+  'res-huayphak': {
+    year: 2554,
+    peakStorageMcm: 28.2,
+    peakStoragePercent: 102.5,
+    peakOutflowCms: 25,
+    peakDateThai: 'ตุลาคม 2554',
+    spillwayOverflow: true,
+    historicalContext:
+      'น้ำเต็มความจุ 102.5% ร่วมหน่วงน้ำตัดยอดน้ำหลากไม่ให้ไหลลงสู่แม่น้ำเพชรบุรีสายหลักพร้อมกับเขื่อนแก่งกระจาน',
+  },
+  'res-yangchum': {
+    year: 2554,
+    peakStorageMcm: 41.5,
+    peakStoragePercent: 101.0,
+    peakOutflowCms: 35,
+    peakDateThai: 'พฤศจิกายน 2554',
+    spillwayOverflow: true,
+    historicalContext:
+      'น้ำเต็มอ่างยางชุม 101% จากฝนตกหนักบริเวณเทือกเขาตะนาวศรี ช่วยบรรเทาน้ำท่วม อ.กุยบุรี จ.ประจวบคีรีขันธ์ ได้อย่างดียิ่ง',
+  },
+  'res-thungkham': {
+    year: 2554,
+    peakStorageMcm: 8.2,
+    peakStoragePercent: 102.5,
+    peakOutflowCms: 10,
+    peakDateThai: 'ตุลาคม 2554',
+    spillwayOverflow: true,
+    historicalContext:
+      'น้ำล้นสปิลเวย์ 102.5% ระบายลงสู่คลองส่งน้ำชลประทานในพื้นที่ อ.ชะอำ',
+  },
+  'res-kiewkhoma': {
+    year: 2554,
+    peakStorageMcm: 172,
+    peakStoragePercent: 101.2,
+    peakOutflowCms: 110,
+    peakDateThai: 'กันยายน 2554',
+    spillwayOverflow: true,
+    historicalContext:
+      'น้ำเต็มความจุ 101.2% เปิดประตูระบายน้ำลงสู่แม่น้ำวัง จ.ลำปาง',
+  },
+  'res-maemok': {
+    year: 2554,
+    peakStorageMcm: 112,
+    peakStoragePercent: 101.8,
+    peakOutflowCms: 65,
+    peakDateThai: 'กันยายน 2554',
+    spillwayOverflow: true,
+    historicalContext:
+      'น้ำล้นสปิลเวย์ 101.8% มวลน้ำหลากท่วมทุ่งรับน้ำ อ.ทุ่งเสลี่ยม และ อ.สวรรคโลก จ.สุโขทัย',
+  },
+  'res-thapsalao': {
+    year: 2554,
+    peakStorageMcm: 164,
+    peakStoragePercent: 102.5,
+    peakOutflowCms: 95,
+    peakDateThai: 'ตุลาคม 2554',
+    spillwayOverflow: true,
+    historicalContext:
+      'น้ำล้นความจุ 102.5% เอ่อท่วมพื้นที่ลุ่มต่ำในเขต จ.อุทัยธานี',
+  },
+  'res-namoon': {
+    year: 2554,
+    peakStorageMcm: 528,
+    peakStoragePercent: 101.5,
+    peakOutflowCms: 180,
+    peakDateThai: 'ตุลาคม 2554',
+    spillwayOverflow: true,
+    historicalContext:
+      'ปริมาณน้ำล้นเกินความจุ 101.5% จากอิทธิพลพายุหลายระลอก ต้องเปิดทางระบายน้ำลงสู่ลำน้ำสงคราม',
+  },
+  'res-nampung': {
+    year: 2554,
+    peakStorageMcm: 166,
+    peakStoragePercent: 100.3,
+    peakOutflowCms: 60,
+    peakDateThai: 'ตุลาคม 2554',
+    spillwayOverflow: true,
+    historicalContext:
+      'น้ำเต็มความจุ 100.3% ไหลบ่าลงสู่หนองหารและลำน้ำพุง จ.สกลนคร',
+  },
+  'res-nongplalai': {
+    year: 2554,
+    peakStorageMcm: 168,
+    peakStoragePercent: 102.6,
+    peakOutflowCms: 45,
+    peakDateThai: 'ตุลาคม 2554',
+    spillwayOverflow: true,
+    historicalContext:
+      'น้ำล้นความจุ 102.6% ระบายน้ำลงสู่คลองใหญ่และแม่น้ำระยอง',
+  },
+  'res-narubadindrachinda': {
+    year: 2554,
+    peakStorageMcm: 295,
+    peakStoragePercent: 100.0,
+    peakOutflowCms: 110,
+    peakDateThai: 'ตุลาคม 2554',
+    spillwayOverflow: false,
+    historicalContext:
+      'พื้นที่ลุ่มน้ำโสมง-ปราจีนบุรี ในปี 54 เกิดน้ำท่วมใหญ่จนนำมาสู่การเร่งรัดสร้างอ่างเก็บน้ำนฤบดินทรจินดา เพื่อตัดยอดน้ำหลากในปัจจุบัน',
+  },
+  'res-huayluang': {
+    year: 2554,
+    peakStorageMcm: 142,
+    peakStoragePercent: 104.7,
+    peakOutflowCms: 90,
+    peakDateThai: 'กันยายน 2554',
+    spillwayOverflow: true,
+    historicalContext:
+      'น้ำล้นสปิลเวย์ 104.7% ไหลบ่าเข้าท่วมพื้นที่เกษตรกรรมและลุ่มต่ำรอบ อ.กุดจับ และเมืองอุดรธานี',
+  },
+  'res-lamsae': {
+    year: 2554,
+    peakStorageMcm: 282,
+    peakStoragePercent: 102.5,
+    peakOutflowCms: 80,
+    peakDateThai: 'ตุลาคม 2554',
+    spillwayOverflow: true,
+    historicalContext:
+      'น้ำล้นความจุ 102.5% ระบายน้ำลงลำน้ำมูล บรรจบกับลำพระเพลิง',
+  },
+  'res-lamnangrong': {
+    year: 2554,
+    peakStorageMcm: 124,
+    peakStoragePercent: 102.1,
+    peakOutflowCms: 50,
+    peakDateThai: 'ตุลาคม 2554',
+    spillwayOverflow: true,
+    historicalContext:
+      'น้ำเต็มความจุ 102.1% ชะลอน้ำป่าจากเทือกเขาดงรักได้อย่างมีประสิทธิภาพ',
+  },
 
   // 24. สถานีแม่น้ำ C.2 ค่ายจิรประวัติ นครสวรรค์
   'river-c2': {

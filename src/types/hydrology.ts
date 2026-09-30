@@ -49,6 +49,8 @@ export interface HydrologicalStation {
   subdistrict: string;
   lat: number;
   lng: number;
+  isMajorDam35?: boolean; // 1 ใน 35 อ่างเก็บน้ำ/เขื่อนขนาดใหญ่ของประเทศไทย (กฟผ. 10 แห่ง + ชลประทาน 25 แห่ง)
+  operator?: 'RID' | 'EGAT' | 'DWR' | 'BMA'; // หน่วยงานผู้ดูแล (กฟผ., กรมชลประทาน ฯลฯ)
   telemetry: WaterTelemetry;
   risk: FloodRiskAssessment;
   history24h: { time: string; levelMsl: number; percent: number; rainfall: number }[];

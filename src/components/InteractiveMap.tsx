@@ -554,13 +554,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             </button>
             <button
               onClick={() => setFilterType('reservoir')}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
                 filterType === 'reservoir'
-                  ? 'bg-white text-slate-900 shadow-sm border border-black/5 font-semibold'
+                  ? 'bg-white text-slate-900 shadow-sm border border-black/5 font-semibold text-cyan-700'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              อ่างเก็บน้ำ
+              <Droplet className="w-3.5 h-3.5 text-cyan-600" />
+              <span>อ่างเก็บน้ำ ({stations.filter((s) => s.type === 'reservoir').length})</span>
             </button>
             <button
               onClick={() => setFilterType('canal')}

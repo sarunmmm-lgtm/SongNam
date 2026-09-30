@@ -32,7 +32,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         <span className="text-[10px]">แผนที่</span>
       </button>
 
-      {/* Dams Tab */}
+      {/* Dams & Reservoirs Tab */}
       <button
         onClick={() => onSelectTab('dams')}
         className={`flex flex-col items-center justify-center py-1 px-2 rounded-lg flex-1 transition-colors ${
@@ -42,7 +42,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         }`}
       >
         <DamIcon className="w-4 h-4 mb-0.5" />
-        <span className="text-[10px]">เขื่อน</span>
+        <span className="text-[10px]">เขื่อน/อ่าง</span>
       </button>
 
       {/* Canals Tab */}

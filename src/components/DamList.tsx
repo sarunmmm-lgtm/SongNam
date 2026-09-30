@@ -12,13 +12,48 @@ import {
   ChevronRight,
   Filter,
   History,
-  Info
+  Info,
+  MapPin,
+  Star,
+  CheckCircle2,
+  X,
+  FileCheck
 } from 'lucide-react';
 
 interface DamListProps {
   stations: HydrologicalStation[];
   onSelectStation: (station: HydrologicalStation) => void;
 }
+
+const PROVINCE_TO_REGION: Record<string, string> = {
+  // ภาคเหนือ
+  'เชียงใหม่': 'north', 'ลำปาง': 'north', 'เชียงราย': 'north', 'สุโขทัย': 'north', 'ตาก': 'north', 
+  'อุตรดิตถ์': 'north', 'พะเยา': 'north', 'แพร่': 'north', 'น่าน': 'north', 'ลำพูน': 'north', 'แม่ฮ่องสอน': 'north',
+  // ภาคอีสาน
+  'ขอนแก่น': 'northeast', 'สกลนคร': 'northeast', 'นครราชสีมา': 'northeast', 'อุดรธานี': 'northeast', 
+  'บุรีรัมย์': 'northeast', 'ศรีสะเกษ': 'northeast', 'อุบลราชธานี': 'northeast', 'ชัยภูมิ': 'northeast', 
+  'กาฬสินธุ์': 'northeast', 'อำนาจเจริญ': 'northeast', 'สุรินทร์': 'northeast', 'ร้อยเอ็ด': 'northeast', 'ยโสธร': 'northeast',
+  // ภาคกลางและตะวันตก
+  'ชัยนาท': 'central_west', 'สุพรรณบุรี': 'central_west', 'อุทัยธานี': 'central_west', 'ลพบุรี': 'central_west', 
+  'สระบุรี': 'central_west', 'นครสวรรค์': 'central_west', 'เพชรบูรณ์': 'central_west', 'กาญจนบุรี': 'central_west', 
+  'ราชบุรี': 'central_west', 'เพชรบุรี': 'central_west', 'ประจวบคีรีขันธ์': 'central_west', 'พิษณุโลก': 'central_west', 'พระนครศรีอยุธยา': 'central_west',
+  // ภาคตะวันออก
+  'ชลบุรี': 'east', 'ระยอง': 'east', 'จันทบุรี': 'east', 'ตราด': 'east', 'ฉะเชิงเทรา': 'east', 
+  'ปราจีนบุรี': 'east', 'นครนายก': 'east', 'สระแก้ว': 'east',
+  // ภาคใต้
+  'สุราษฎร์ธานี': 'south', 'ยะลา': 'south', 'นครศรีธรรมราช': 'south', 'สงขลา': 'south', 
+  'ภูเก็ต': 'south', 'กระบี่': 'south', 'พัทลุง': 'south', 'พังงา': 'south', 'ตรัง': 'south', 
+  'สตูล': 'south', 'ปัตตานี': 'south', 'นราธิวาส': 'south', 'ชุมพร': 'south', 'ระนอง': 'south'
+};
+
+const REGION_LABELS: Record<string, string> = {
+  all: 'ทุกภูมิภาคทั่วไทย',
+  north: 'ภาคเหนือ',
+  northeast: 'ภาคตะวันออกเฉียงเหนือ (อีสาน)',
+  central_west: 'ภาคกลาง & ตะวันตก',
+  east: 'ภาคตะวันออก (EEC & ชายฝั่ง)',
+  south: 'ภาคใต้'
+};
 
 export const DamList: React.FC<DamListProps> = ({
   stations,
@@ -27,10 +62,13 @@ export const DamList: React.FC<DamListProps> = ({
   const dams = stations.filter((s) => s.type === 'dam' || s.type === 'reservoir');
 
   const [search, setSearch] = useState('');
+  const [filterKind, setFilterKind] = useState<'all' | 'major35' | 'dam' | 'reservoir'>('all');
+  const [selectedRegion, setSelectedRegion] = useState<string>('all');
   const [selectedBasin, setSelectedBasin] = useState('all');
   const [sortBy, setSortBy] = useState<'percent_desc' | 'percent_asc' | 'capacity_desc' | 'risk_2554' | 'buffer_2554'>('percent_desc');
   const [show2554Comparison, setShow2554Comparison] = useState<boolean>(true);
   const [filterChaoPhrayaOnly, setFilterChaoPhrayaOnly] = useState<boolean>(false);
+  const [showChecklistModal, setShowChecklistModal] = useState<boolean>(false);
 
   // Collect unique basins
   const basins = Array.from(new Set(dams.map((d) => d.basin)));
@@ -41,6 +79,11 @@ export const DamList: React.FC<DamListProps> = ({
   const avgPercent = Number(((totalCurrent / totalCapacity) * 100).toFixed(1));
   const totalInflow = dams.reduce((acc, d) => acc + d.telemetry.inflowRateCms, 0);
   const totalOutflow = dams.reduce((acc, d) => acc + d.telemetry.outflowRateCms, 0);
+
+  // 35 Major Dams
+  const major35Dams = dams.filter((d) => d.isMajorDam35);
+  const egatDams = major35Dams.filter((d) => d.operator === 'EGAT');
+  const ridDams = major35Dams.filter((d) => d.operator === 'RID');
 
   // 4 Key Chao Phraya Dams Calculation (Bhumibol, Sirikit, Kwai Noi, Pasak)
   const chaoPhrayaFourDamIds = ['dam-bhumibol', 'dam-sirikit', 'dam-kwainoi', 'dam-pasak'];
@@ -56,10 +99,22 @@ export const DamList: React.FC<DamListProps> = ({
   const filtered = dams.filter((d) => {
     const matchSearch =
       d.name.toLowerCase().includes(search.toLowerCase()) ||
-      d.province.toLowerCase().includes(search.toLowerCase());
+      d.province.toLowerCase().includes(search.toLowerCase()) ||
+      d.district.toLowerCase().includes(search.toLowerCase());
+    
+    const matchKind = 
+      filterKind === 'all' 
+        ? true 
+        : filterKind === 'major35'
+        ? d.isMajorDam35 === true
+        : d.type === filterKind;
+
     const matchBasin = selectedBasin === 'all' || d.basin === selectedBasin;
+    const itemRegion = PROVINCE_TO_REGION[d.province] || 'central_west';
+    const matchRegion = selectedRegion === 'all' || itemRegion === selectedRegion;
     const matchChaoPhraya = !filterChaoPhrayaOnly || chaoPhrayaFourDamIds.includes(d.id);
-    return matchSearch && matchBasin && matchChaoPhraya;
+
+    return matchSearch && matchKind && matchBasin && matchRegion && matchChaoPhraya;
   }).sort((a, b) => {
     if (sortBy === 'percent_desc') return b.telemetry.storagePercent - a.telemetry.storagePercent;
     if (sortBy === 'percent_asc') return a.telemetry.storagePercent - b.telemetry.storagePercent;
@@ -67,12 +122,12 @@ export const DamList: React.FC<DamListProps> = ({
     if (sortBy === 'risk_2554') {
       const aGap = a.benchmark2554 ? a.telemetry.storagePercent - a.benchmark2554.peakStoragePercent : -999;
       const bGap = b.benchmark2554 ? b.telemetry.storagePercent - b.benchmark2554.peakStoragePercent : -999;
-      return bGap - aGap; // Closest to 2554 first
+      return bGap - aGap;
     }
     if (sortBy === 'buffer_2554') {
       const aBuffer = a.benchmark2554 ? Math.max(0, a.benchmark2554.peakStorageMcm - a.telemetry.currentStorageMcm) : 0;
       const bBuffer = b.benchmark2554 ? Math.max(0, b.benchmark2554.peakStorageMcm - b.telemetry.currentStorageMcm) : 0;
-      return bBuffer - aBuffer; // Largest buffer first
+      return bBuffer - aBuffer;
     }
     return 0;
   });
@@ -83,14 +138,18 @@ export const DamList: React.FC<DamListProps> = ({
       <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-sm border border-blue-900/40">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5 max-w-2xl">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1">
                 <History className="w-3 h-3 text-rose-400" />
                 จุดอ้างอิงประวัติศาสตร์: มหาอุทกภัยปี 2554
               </span>
-              <span className="text-[11px] text-slate-300">
-                (ปีที่เขื่อนเต็มความจุจนน้ำท่วมใหญ่)
-              </span>
+              <button
+                onClick={() => setShowChecklistModal(true)}
+                className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <CheckCircle2 className="w-3 h-3 text-amber-400" />
+                <span>ครบ 35 เขื่อนขนาดใหญ่ของประเทศ (กดตรวจสอบรายชื่อ)</span>
+              </button>
             </div>
             <h2 className="text-base sm:text-lg font-semibold tracking-tight text-white flex items-center gap-2">
               <DamIcon className="w-5 h-5 text-blue-300 shrink-0" />
@@ -98,15 +157,14 @@ export const DamList: React.FC<DamListProps> = ({
             </h2>
             <p className="text-xs text-slate-300 leading-relaxed">
               ในปี 2554 เขื่อนภูมิพล สิริกิติ์ แควน้อย และป่าสัก มีน้ำกักเก็บรวมถึง{' '}
-              <b className="text-rose-300">25,227 ล้าน ลบ.ม. (101.4% ล้นความจุ)</b> ทำให้น้ำล้นสปิลเวย์ต่อเนื่อง
-              ปัจจุบันทั้ง 4 เขื่อนมีน้ำรวม <b className="text-blue-300">{fourDamsCurrent.toLocaleString()} ล้าน ลบ.ม. ({fourDamsPercent}%)</b>
+              <b className="text-rose-300 font-semibold">{fourDams2554Peak.toLocaleString()} ล้าน ลบ.ม. (101.4%)</b>{' '}
+              จนน้ำล้นสปิลเวย์ ปัจจุบันทั้ง 4 เขื่อนมีน้ำรวม {fourDamsCurrent.toLocaleString()} ล้าน ลบ.ม. ({fourDamsPercent}%)
             </p>
           </div>
 
-          {/* Quick Metrics Badge */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10 text-center min-w-[130px]">
-              <div className="text-[10px] text-slate-300">ช่องว่างรับน้ำเหลืออีก</div>
+              <div className="text-[10px] text-slate-300">พื้นที่รับน้ำที่เหลือ</div>
               <div className="text-lg sm:text-xl font-bold text-emerald-400 mt-0.5">
                 {fourDamsRemainingBuffer.toLocaleString()}
               </div>
@@ -148,21 +206,21 @@ export const DamList: React.FC<DamListProps> = ({
         {/* Total Storage */}
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
           <div className="text-xs text-[#86868b] flex items-center justify-between">
-            <span>น้ำในเขื่อนรวม</span>
+            <span>น้ำในเขื่อนและอ่างรวม</span>
             <DamIcon className="w-4 h-4 text-[#0071e3]" />
           </div>
           <div className="text-2xl font-semibold text-[#1d1d1f] mt-1.5 tracking-tight">
             {totalCurrent.toLocaleString()}
           </div>
           <div className="text-[11px] text-[#86868b] mt-0.5">
-            ความจุ {totalCapacity.toLocaleString()} ล้าน ลบ.ม.
+            ความจุ {totalCapacity.toLocaleString()} ล้าน ลบ.ม. ({dams.length} แห่ง)
           </div>
         </div>
 
         {/* Avg Percent */}
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
           <div className="text-xs text-[#86868b] flex items-center justify-between">
-            <span>ระดับน้ำเฉลี่ย</span>
+            <span>ระดับน้ำเฉลี่ยทั้งประเทศ</span>
             <span className={`w-2 h-2 rounded-full ${avgPercent > 80 ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
           </div>
           <div className="text-2xl font-semibold text-[#1d1d1f] mt-1.5 tracking-tight">
@@ -179,64 +237,110 @@ export const DamList: React.FC<DamListProps> = ({
             <span>น้ำไหลเข้ารวม</span>
             <ArrowDownCircle className="w-3.5 h-3.5 text-emerald-600" />
           </div>
-          <div className="text-2xl font-semibold text-[#1d1d1f] mt-1.5 tracking-tight">
+          <div className="text-2xl font-semibold text-emerald-600 mt-1.5 tracking-tight">
             {totalInflow.toLocaleString()}
           </div>
-          <div className="text-[11px] text-[#86868b] mt-0.5">ลบ.ม./วินาที (cms)</div>
+          <div className="text-[11px] text-[#86868b] mt-0.5">
+            ลูกบาศก์เมตร / วินาที
+          </div>
         </div>
 
         {/* Total Outflow */}
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm">
           <div className="text-xs text-[#86868b] flex items-center justify-between">
             <span>น้ำระบายออกรวม</span>
-            <ArrowUpCircle className="w-3.5 h-3.5 text-[#0071e3]" />
+            <ArrowUpCircle className="w-3.5 h-3.5 text-blue-600" />
           </div>
-          <div className="text-2xl font-semibold text-[#1d1d1f] mt-1.5 tracking-tight">
+          <div className="text-2xl font-semibold text-blue-600 mt-1.5 tracking-tight">
             {totalOutflow.toLocaleString()}
           </div>
-          <div className="text-[11px] text-[#86868b] mt-0.5">ลบ.ม./วินาที (cms)</div>
+          <div className="text-[11px] text-[#86868b] mt-0.5">
+            ลูกบาศก์เมตร / วินาที
+          </div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-sm flex flex-col sm:flex-row gap-2.5 items-center justify-between">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-          <input
-            type="text"
-            placeholder="ค้นหาชื่อเขื่อน อ่างเก็บน้ำ หรือจังหวัด..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-100/90 border border-slate-200/80 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0071e3]"
-          />
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-sm space-y-3">
+        {/* Row 1: Search & Type Tabs */}
+        <div className="flex flex-col lg:flex-row gap-2.5 items-center justify-between">
+          <div className="relative w-full lg:w-80">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              placeholder="ค้นหาชื่อเขื่อน อ่างเก็บน้ำ อำเภอ หรือจังหวัด..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-100/90 border border-slate-200/80 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0071e3]"
+            />
+          </div>
+
+          {/* Type Segmented Buttons: All vs 35 Major Dams vs Dams vs Reservoirs */}
+          <div className="flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 w-full sm:w-auto overflow-x-auto">
+            <button
+              onClick={() => setFilterKind('all')}
+              className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                filterKind === 'all'
+                  ? 'bg-white text-slate-900 shadow-sm font-semibold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              ทั้งหมด ({dams.length})
+            </button>
+            <button
+              onClick={() => setFilterKind('major35')}
+              className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
+                filterKind === 'major35'
+                  ? 'bg-amber-500 text-white shadow-sm font-semibold'
+                  : 'text-amber-800 hover:text-amber-900 bg-amber-50/60'
+              }`}
+            >
+              <Star className="w-3.5 h-3.5 fill-current" />
+              <span>35 เขื่อนขนาดใหญ่ ({major35Dams.length})</span>
+            </button>
+            <button
+              onClick={() => setFilterKind('dam')}
+              className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
+                filterKind === 'dam'
+                  ? 'bg-white text-slate-900 shadow-sm font-semibold text-[#0071e3]'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <DamIcon className="w-3.5 h-3.5 text-[#0071e3]" />
+              <span>เขื่อนหลัก ({dams.filter(d => d.type === 'dam').length})</span>
+            </button>
+            <button
+              onClick={() => setFilterKind('reservoir')}
+              className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
+                filterKind === 'reservoir'
+                  ? 'bg-white text-slate-900 shadow-sm font-semibold text-cyan-700'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Droplet className="w-3.5 h-3.5 text-cyan-600" />
+              <span>อ่างเก็บน้ำ ({dams.filter(d => d.type === 'reservoir').length})</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
-          {/* Toggle 2554 Mode */}
-          <button
-            onClick={() => setShow2554Comparison(!show2554Comparison)}
-            className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors ${
-              show2554Comparison
-                ? 'bg-blue-50 text-[#0071e3] border-blue-200'
-                : 'bg-slate-100 text-slate-600 border-slate-200/80 hover:bg-slate-200'
-            }`}
-          >
-            <History className="w-3.5 h-3.5" />
-            <span>{show2554Comparison ? 'ซ่อนเทียบปี 54' : 'แสดงเทียบปี 54'}</span>
-          </button>
-
-          {/* Quick filter 4 Chao Phraya Dams */}
-          <button
-            onClick={() => setFilterChaoPhrayaOnly(!filterChaoPhrayaOnly)}
-            className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors ${
-              filterChaoPhrayaOnly
-                ? 'bg-amber-50 text-amber-800 border-amber-300'
-                : 'bg-slate-100 text-slate-600 border-slate-200/80 hover:bg-slate-200'
-            }`}
-          >
-            <DamIcon className="w-3.5 h-3.5 text-amber-700" />
-            <span>4 เขื่อนหลักเจ้าพระยา</span>
-          </button>
+        {/* Row 2: Region, Basin, and Sort Options */}
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+          {/* Region Dropdown */}
+          <div className="flex items-center gap-1 bg-slate-100/80 px-2.5 py-1.5 rounded-lg border border-slate-200/80 text-xs">
+            <MapPin className="w-3 h-3 text-slate-500" />
+            <select
+              value={selectedRegion}
+              onChange={(e) => setSelectedRegion(e.target.value)}
+              className="bg-transparent text-slate-700 focus:outline-none cursor-pointer text-xs font-medium"
+            >
+              <option value="all">ทุกภูมิภาคทั่วไทย ({dams.length})</option>
+              <option value="north">ภาคเหนือ</option>
+              <option value="northeast">ภาคอีสาน (ตะวันออกเฉียงเหนือ)</option>
+              <option value="central_west">ภาคกลาง & ตะวันตก</option>
+              <option value="east">ภาคตะวันออก (EEC & ชายฝั่ง)</option>
+              <option value="south">ภาคใต้</option>
+            </select>
+          </div>
 
           {/* Basin Filter */}
           <div className="flex items-center gap-1 bg-slate-100/80 px-2.5 py-1.5 rounded-lg border border-slate-200/80 text-xs">
@@ -268,101 +372,334 @@ export const DamList: React.FC<DamListProps> = ({
               <option value="buffer_2554">ช่องว่างรับน้ำห่างจากปี 54 มากสุด</option>
             </select>
           </div>
+
+          {/* Toggle 2554 Mode */}
+          <button
+            onClick={() => setShow2554Comparison(!show2554Comparison)}
+            className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors ${
+              show2554Comparison
+                ? 'bg-blue-50 text-[#0071e3] border-blue-200'
+                : 'bg-slate-100 text-slate-600 border-slate-200/80 hover:bg-slate-200'
+            }`}
+          >
+            <History className="w-3.5 h-3.5" />
+            <span>{show2554Comparison ? 'ซ่อนเทียบปี 54' : 'แสดงเทียบปี 54'}</span>
+          </button>
+
+          {/* Quick Checklist Button */}
+          <button
+            onClick={() => setShowChecklistModal(true)}
+            className="px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-900 text-xs font-medium flex items-center gap-1.5 hover:bg-amber-100 transition-colors"
+          >
+            <FileCheck className="w-3.5 h-3.5 text-amber-600" />
+            <span>ตรวจเช็คบัญชี 35 เขื่อนหลัก</span>
+          </button>
+
+          <span className="ml-auto text-xs text-slate-500">
+            แสดงผล <b>{filtered.length}</b> จาก {dams.length} แห่ง
+          </span>
         </div>
       </div>
 
-      {/* Grid of Dam Cards */}
+      {/* Grid of Dam & Reservoir Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {filtered.map((dam) => {
           const isCritical = dam.risk.alertLevel === 'critical';
           const isWarning = dam.risk.alertLevel === 'warning';
           const isWatch = dam.risk.alertLevel === 'watch';
 
-          const statusColor = isCritical ? 'text-rose-700' : isWarning ? 'text-amber-700' : isWatch ? 'text-yellow-800' : 'text-slate-600';
-          const statusText = isCritical ? 'วิกฤต' : isWarning ? 'เตือนภัย' : isWatch ? 'เฝ้าระวัง' : 'ปกติ';
+          const statusColor = isCritical
+            ? 'text-rose-700 bg-rose-50 border-rose-200'
+            : isWarning
+            ? 'text-amber-700 bg-amber-50 border-amber-200'
+            : isWatch
+            ? 'text-yellow-800 bg-yellow-50 border-yellow-200'
+            : 'text-emerald-700 bg-emerald-50 border-emerald-200';
+
+          const statusText = isCritical
+            ? 'วิกฤต'
+            : isWarning
+            ? 'เตือนภัย'
+            : isWatch
+            ? 'เฝ้าระวัง'
+            : 'ปกติ';
+
+          const barColor = isCritical
+            ? 'bg-rose-500'
+            : isWarning
+            ? 'bg-amber-500'
+            : isWatch
+            ? 'bg-yellow-400'
+            : 'bg-[#0071e3]';
+
+          const isReservoir = dam.type === 'reservoir';
 
           return (
             <div
               key={dam.id}
-              className="bg-white border border-slate-200/80 hover:border-slate-300 rounded-2xl p-4.5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+              onClick={() => onSelectStation(dam)}
+              className="group bg-white border border-slate-200/80 hover:border-slate-300 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
             >
               <div>
                 {/* Header */}
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div>
-                    <h3 className="font-semibold text-[#1d1d1f] text-sm tracking-tight flex items-center gap-1.5">
-                      <DamIcon className="w-4 h-4 text-[#0071e3] shrink-0" />
-                      <span>{dam.name}</span>
-                      {chaoPhrayaFourDamIds.includes(dam.id) && (
-                        <span className="text-[9px] px-1.5 py-0.5 bg-blue-50 text-[#0071e3] border border-blue-200 rounded font-medium">
-                          4 เขื่อนหลัก
-                        </span>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-2 rounded-xl border ${isReservoir ? 'bg-cyan-50 border-cyan-100 text-cyan-600' : 'bg-slate-50 border-slate-200/80 text-[#0071e3]'}`}>
+                      {isReservoir ? (
+                        <Droplet className="w-5 h-5 text-cyan-600" />
+                      ) : (
+                        <DamIcon className="w-5 h-5 text-[#0071e3]" />
                       )}
-                    </h3>
-                    <div className="text-xs text-[#86868b] mt-0.5">
-                      จ.{dam.province} · {dam.basin}
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {dam.isMajorDam35 && (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-0.5">
+                            <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                            35 เขื่อนหลัก ({dam.operator === 'EGAT' ? 'กฟผ.' : 'ชลประทาน'})
+                          </span>
+                        )}
+                        <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold border ${
+                          isReservoir 
+                            ? 'bg-cyan-50 text-cyan-700 border-cyan-200' 
+                            : 'bg-blue-50 text-[#0071e3] border-blue-200'
+                        }`}>
+                          {isReservoir ? 'อ่างเก็บน้ำ' : 'เขื่อนหลัก'}
+                        </span>
+                        <span className="text-[11px] text-[#86868b]">{dam.province}</span>
+                      </div>
+                      <h3 className="font-semibold text-slate-900 group-hover:text-[#0071e3] transition-colors tracking-tight text-sm mt-0.5">
+                        {dam.name}
+                      </h3>
+                      <div className="text-[11px] text-[#86868b] flex items-center gap-1">
+                        <span>{dam.basin}</span>
+                        <span>•</span>
+                        <span>อ.{dam.district}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <span className={`text-xs font-medium flex items-center gap-1.5 ${statusColor}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${isCritical ? 'bg-rose-500' : isWarning ? 'bg-amber-500' : isWatch ? 'bg-yellow-400' : 'bg-emerald-500'}`}></span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${statusColor} shrink-0`}>
                     {statusText}
                   </span>
                 </div>
 
-                {/* Current Progress Bar */}
-                <div className="my-2.5">
-                  <div className="flex justify-between items-baseline text-xs mb-1">
-                    <span className="text-[#86868b]">ปริมาณน้ำปัจจุบัน</span>
-                    <span className="font-semibold text-[#1d1d1f]">
+                {/* Storage & Percentage Bar */}
+                <div className="mt-4 space-y-1.5">
+                  <div className="flex justify-between items-baseline text-xs">
+                    <span className="text-[#86868b]">ปริมาณน้ำกักเก็บ</span>
+                    <span className="font-bold text-slate-900 text-base">
                       {dam.telemetry.storagePercent}%
                     </span>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+
+                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        isCritical ? 'bg-rose-500' : isWarning ? 'bg-amber-500' : isWatch ? 'bg-yellow-400' : 'bg-[#0071e3]'
-                      }`}
+                      className={`h-full rounded-full transition-all duration-500 ${barColor}`}
                       style={{ width: `${Math.min(100, dam.telemetry.storagePercent)}%` }}
                     />
                   </div>
-                  <div className="flex justify-between text-[11px] text-[#86868b] mt-1">
-                    <span>{dam.telemetry.currentStorageMcm.toLocaleString()} ล้าน ลบ.ม.</span>
-                    <span>เต็มความจุ {dam.telemetry.storageCapacityMcm.toLocaleString()}</span>
+
+                  <div className="flex justify-between text-[11px] text-[#86868b] pt-0.5">
+                    <span>
+                      {dam.telemetry.currentStorageMcm.toLocaleString()} ล้าน ลบ.ม.
+                    </span>
+                    <span>
+                      เต็มความจุ {dam.telemetry.storageCapacityMcm.toLocaleString()}
+                    </span>
                   </div>
                 </div>
 
-                {/* Inflow vs Outflow */}
-                <div className="grid grid-cols-2 gap-2 text-xs py-2 border-t border-slate-100 text-[#86868b]">
-                  <div>
-                    <span className="text-[11px] block">น้ำไหลเข้า:</span>
-                    <span className="font-medium text-[#1d1d1f]">{dam.telemetry.inflowRateCms.toLocaleString()} cms</span>
-                  </div>
-                  <div>
-                    <span className="text-[11px] block">น้ำระบายออก:</span>
-                    <span className="font-medium text-[#1d1d1f]">{dam.telemetry.outflowRateCms.toLocaleString()} cms</span>
-                  </div>
-                </div>
-
-                {/* Compact 2554 Comparison Box */}
+                {/* 2554 Mega Flood Benchmark Comparison Mini Card */}
                 {show2554Comparison && (
-                  <Flood2554ComparisonCard station={dam} compact={true} />
+                  <div className="mt-3">
+                    <Flood2554ComparisonCard station={dam} compact={true} />
+                  </div>
                 )}
+
+                {/* Telemetry Flow Rates */}
+                <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-100 text-xs">
+                  <div className="bg-slate-50 rounded-xl p-2">
+                    <div className="text-[#86868b] text-[10px] flex items-center gap-1">
+                      <ArrowDownCircle className="w-3 h-3 text-emerald-600" />
+                      น้ำไหลเข้า
+                    </div>
+                    <div className="font-semibold text-slate-800 mt-0.5">
+                      {dam.telemetry.inflowRateCms.toLocaleString()} <span className="text-[10px] font-normal text-slate-500">ลบ.ม./วิ</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-xl p-2">
+                    <div className="text-[#86868b] text-[10px] flex items-center gap-1">
+                      <ArrowUpCircle className="w-3 h-3 text-blue-600" />
+                      น้ำระบายออก
+                    </div>
+                    <div className="font-semibold text-slate-800 mt-0.5">
+                      {dam.telemetry.outflowRateCms.toLocaleString()} <span className="text-[10px] font-normal text-slate-500">ลบ.ม./วิ</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="pt-2.5 mt-2.5 border-t border-slate-100">
-                <button
-                  onClick={() => onSelectStation(dam)}
-                  className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1"
-                >
-                  ดูรายละเอียด & ประวัติปี 54 <ChevronRight className="w-3.5 h-3.5" />
-                </button>
+              {/* Card Footer Action */}
+              <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-[#0071e3] font-medium">
+                <span>ดูรายละเอียด & การจำลองน้ำ</span>
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </div>
           );
         })}
       </div>
+
+      {filtered.length === 0 && (
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-8 text-center text-slate-500 space-y-2">
+          <p className="text-sm font-medium">ไม่พบเขื่อนหรืออ่างเก็บน้ำที่ตรงกับเงื่อนไขการค้นหา</p>
+          <button
+            onClick={() => {
+              setSearch('');
+              setFilterKind('all');
+              setSelectedRegion('all');
+              setSelectedBasin('all');
+              setFilterChaoPhrayaOnly(false);
+            }}
+            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-lg transition-colors font-medium"
+          >
+            ล้างตัวกรองทั้งหมด
+          </button>
+        </div>
+      )}
+
+      {/* 35 Major Dams Checklist Modal */}
+      {showChecklistModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-slate-200">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500 text-white flex items-center gap-1">
+                    <Star className="w-3 h-3 fill-current" />
+                    บัญชีทางการ (Official 35 Large Dams)
+                  </span>
+                  <span className="text-xs text-slate-500 font-medium">
+                    (กฟผ. 10 แห่ง + กรมชลประทาน 25 แห่ง)
+                  </span>
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <span>รายชื่อ 35 อ่างเก็บน้ำ / เขื่อนขนาดใหญ่ของประเทศไทย</span>
+                  <span className="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md text-xs font-semibold">
+                    ครบ 35/35 แห่ง (100%)
+                  </span>
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowChecklistModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-200/80 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Content - Table grouped by regions */}
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3.5 text-xs text-blue-900 flex items-start gap-2.5">
+                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <div>
+                  นี่คือรายชื่อ <b>35 เขื่อนและอ่างเก็บน้ำขนาดใหญ่ระดับประเทศ</b> ที่กรมชลประทาน (RID) และการไฟฟ้าฝ่ายผลิตแห่งประเทศไทย (กฟผ.) ใช้เป็นเกณฑ์ติดตามสถานการณ์น้ำท่วม-น้ำแล้งประจำวันของประเทศไทย คุณสามารถคลิกที่แต่ละแห่งเพื่อเปิดดูข้อมูลและแบบจำลองน้ำได้ทันที
+                </div>
+              </div>
+
+              {/* Group by Region */}
+              {['north', 'northeast', 'central_west', 'east', 'south'].map((regionKey) => {
+                const regionDams = major35Dams.filter((d) => (PROVINCE_TO_REGION[d.province] || 'central_west') === regionKey);
+                if (regionDams.length === 0) return null;
+
+                return (
+                  <div key={regionKey} className="space-y-2">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                      <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-[#0071e3]" />
+                        <span>{REGION_LABELS[regionKey]}</span>
+                        <span className="text-xs font-normal text-slate-500">
+                          ({regionDams.length} แห่ง)
+                        </span>
+                      </h4>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {regionDams.map((dam, idx) => (
+                        <div
+                          key={dam.id}
+                          onClick={() => {
+                            setShowChecklistModal(false);
+                            onSelectStation(dam);
+                          }}
+                          className="bg-slate-50 hover:bg-blue-50/60 border border-slate-200 hover:border-blue-300 rounded-xl p-3 cursor-pointer transition-all flex items-center justify-between group"
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-xs text-slate-900 group-hover:text-[#0071e3] transition-colors">
+                                {dam.name}
+                              </span>
+                              <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                                dam.operator === 'EGAT' 
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300' 
+                                  : 'bg-blue-100 text-blue-800 border border-blue-200'
+                              }`}>
+                                {dam.operator === 'EGAT' ? 'กฟผ.' : 'ชลประทาน'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-500">
+                              จ.{dam.province} • {dam.basin}
+                            </div>
+                            <div className="text-[11px] text-slate-600 font-medium">
+                              ความจุ {dam.telemetry.storageCapacityMcm.toLocaleString()} ล้าน ลบ.ม.
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <div className="font-bold text-sm text-slate-900">
+                              {dam.telemetry.storagePercent}%
+                            </div>
+                            <div className="text-[10px] text-slate-500">
+                              {dam.telemetry.currentStorageMcm.toLocaleString()} ม.ลบ.ม.
+                            </div>
+                            <span className={`inline-block px-1.5 py-0.2 rounded-full text-[9px] font-medium mt-1 ${
+                              dam.risk.alertLevel === 'critical'
+                                ? 'bg-rose-100 text-rose-700'
+                                : dam.risk.alertLevel === 'warning'
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-emerald-100 text-emerald-700'
+                            }`}>
+                              {dam.risk.alertLevel === 'critical' ? 'วิกฤต' : dam.risk.alertLevel === 'warning' ? 'เตือนภัย' : 'ปกติ'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+              <span className="text-xs text-slate-500">
+                รวมทั้งหมด 35 แห่ง (กฟผ. 10 แห่ง + กรมชลประทาน 25 แห่ง)
+              </span>
+              <button
+                onClick={() => {
+                  setShowChecklistModal(false);
+                  setFilterKind('major35');
+                }}
+                className="px-4 py-2 bg-[#0071e3] hover:bg-blue-600 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
+              >
+                กรองดูเฉพาะ 35 เขื่อนนี้บนหน้าเว็บ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
