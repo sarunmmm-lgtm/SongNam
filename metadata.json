@@ -1,0 +1,6 @@
+{
+  "name": "Thai HydroWatch - ระบบเตือนภัยและติดตามระดับน้ำอัจฉริยะ",
+  "description": "ระบบติดตามและประเมินระดับน้ำในเขื่อน อ่างเก็บน้ำ ลำคลอง แบบเรียลไทม์ พร้อมแบบจำลองคำนวณน้ำท่วม แผนที่โต้ตอบ ข้อมูลเปรียบเทียบมหาอุทกภัยปี 2554 และเรดาร์ตรวจกลุ่มฝนสด",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
