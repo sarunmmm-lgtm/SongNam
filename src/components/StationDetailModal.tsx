@@ -11,7 +11,8 @@ import {
   Sparkles,
   Gauge,
   Video,
-  Maximize2
+  Maximize2,
+  ExternalLink
 } from 'lucide-react';
 
 interface StationDetailModalProps {
@@ -101,6 +102,33 @@ export const StationDetailModal: React.FC<StationDetailModalProps> = ({
 
         {/* Scrollable Body */}
         <div className="p-4 sm:p-5 overflow-y-auto space-y-4">
+          {/* Emergency Bulletin for Chao Phraya Barrage Dam (RID Hydro 5H) */}
+          {station.id === 'dam-chaophraya' && (
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 text-xs text-rose-900 flex items-start gap-2.5 shadow-xs">
+              <span className="flex h-2.5 w-2.5 relative mt-1 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
+              </span>
+              <div className="flex-1 space-y-1">
+                <div className="font-bold flex items-center justify-between flex-wrap gap-1">
+                  <span className="text-rose-950 font-bold">⚠️ ประกาศด่วนกรมชลประทาน (RID Hydro 5H): ปรับเพิ่มการระบายน้ำ 2,500 ลบ.ม./วินาที</span>
+                  <a
+                    href="https://hyd-app-db.rid.go.th/hydro5h.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-rose-700 hover:text-rose-900 underline flex items-center gap-0.5 text-[11px] font-mono"
+                  >
+                    <span>RID Hydro 5H</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <p className="text-[11px] text-rose-800 leading-relaxed font-sans">
+                  เนื่องจากมีน้ำหลากจากตอนบน (สถานี C.2 นครสวรรค์ ไหลเข้ากว่า 2,850 ลบ.ม./วิ) เขื่อนเจ้าพระยาจึงปรับการระบายน้ำเพิ่มเป็น <b className="text-rose-950">2,500 ลบ.ม./วินาที</b> ตรวจวัดระดับน้ำเหนือเขื่อนได้ <b className="text-rose-950">+17.77 ม. (รทก.)</b> และระดับท้ายเขื่อน <b className="text-rose-950">+15.93 ม. (รทก.)</b> (ระดับตลิ่งวิกฤต 16.00 ม.) ส่งผลให้น้ำเริ่มเอ่อล้นตลิ่งในพื้นที่ลุ่มต่ำนอกคันกั้นน้ำ 11 จังหวัดท้ายเขื่อน
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Main Visual & Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-stretch">
             {/* Water Column Gauge (5 cols) */}

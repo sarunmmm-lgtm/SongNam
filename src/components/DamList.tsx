@@ -488,6 +488,11 @@ export const DamList: React.FC<DamListProps> = ({
                             35 เขื่อนหลัก ({dam.operator === 'EGAT' ? 'กฟผ.' : 'ชลประทาน'})
                           </span>
                         )}
+                        {dam.id === 'dam-chaophraya' && (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-600 text-white flex items-center gap-1 shadow-xs">
+                            ระบาย 2,500 ลบ.ม./วิ (RID Hydro 5H)
+                          </span>
+                        )}
                         <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold border ${
                           isReservoir 
                             ? 'bg-cyan-50 text-cyan-700 border-cyan-200' 

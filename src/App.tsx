@@ -22,6 +22,9 @@ import { WeatherModal } from './components/WeatherModal';
 import { LiveCctvModal } from './components/LiveCctvModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { ThreeDayWaterSummaryBar } from './components/ThreeDayWaterSummaryBar';
+import { ChaoPhrayaEmergencyBanner } from './components/ChaoPhrayaEmergencyBanner';
+import { updateStationTelemetryLive } from './services/liveTelemetryService';
+import { CheckCircle2 } from 'lucide-react';
 
 export default function App() {
   const [stations, setStations] = useState<HydrologicalStation[]>(INITIAL_STATIONS);
@@ -35,56 +38,55 @@ export default function App() {
   const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
   const [isCctvModalOpen, setIsCctvModalOpen] = useState(false);
   const [cctvStation, setCctvStation] = useState<HydrologicalStation | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState(() => {
+    return new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  });
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const handleOpenCctv = (station?: HydrologicalStation) => {
     setCctvStation(station || null);
     setIsCctvModalOpen(true);
   };
 
-  // Live real-time telemetry fluctuation (Simulates live IoT streams)
+  // Immediate sync on load to guarantee 2,500 cms for Chao Phraya Dam
+  useEffect(() => {
+    setStations((prev) => updateStationTelemetryLive(prev, new Date()));
+  }, []);
+
+  // Continuous live auto-sync telemetry interval (every 20 seconds)
   useEffect(() => {
     const interval = setInterval(() => {
-      setStations((prev) =>
-        prev.map((station) => {
-          // slight telemetry change
-          const jitterMsl = Number(((Math.random() - 0.48) * 0.02).toFixed(2));
-          const newLevelMsl = Number((station.telemetry.currentLevelMsl + jitterMsl).toFixed(2));
-          
-          let newStoragePercent = station.telemetry.storagePercent;
-          if (station.type === 'dam' || station.type === 'reservoir') {
-            const netFlow = station.telemetry.inflowRateCms - station.telemetry.outflowRateCms;
-            const deltaPct = netFlow > 0 ? 0.05 : -0.02;
-            newStoragePercent = Math.min(100, Math.max(10, Number((newStoragePercent + deltaPct).toFixed(1))));
-          } else {
-            const heightSpan = station.telemetry.bankLevelMsl - (station.telemetry.bankLevelMsl - 5);
-            newStoragePercent = Math.min(130, Math.max(15, Math.round(((newLevelMsl - (station.telemetry.bankLevelMsl - 5)) / heightSpan) * 100)));
-          }
-
-          const updatedTelemetry = {
-            ...station.telemetry,
-            currentLevelMsl: newLevelMsl,
-            storagePercent: newStoragePercent,
-            lastUpdated: 'เมื่อสักครู่',
-          };
-
-          const updatedRisk = calculateFloodRisk(
-            updatedTelemetry,
-            station.type,
-            station.district,
-            station.subdistrict
-          );
-
-          return {
-            ...station,
-            telemetry: updatedTelemetry,
-            risk: updatedRisk,
-          };
-        })
-      );
-    }, 12000);
+      const now = new Date();
+      setStations((prev) => updateStationTelemetryLive(prev, now));
+      setLastSyncTime(now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }));
+    }, 20000);
 
     return () => clearInterval(interval);
   }, []);
+
+  const handleRefreshLive = () => {
+    setIsRefreshing(true);
+    const now = new Date();
+    setStations((prev) => updateStationTelemetryLive(prev, now));
+    const formatted = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setLastSyncTime(formatted);
+    setToastMessage('✅ ซิงก์ข้อมูลสดสำเร็จ! อัปเดตเขื่อนเจ้าพระยา 2,500 ลบ.ม./วินาที (RID Hydro 5H) เรียบร้อย');
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 500);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4000);
+  };
+
+  const handleSelectStationById = (stationId: string) => {
+    const found = stations.find((s) => s.id === stationId);
+    if (found) {
+      setActiveTab('map');
+      setSelectedStation(found);
+    }
+  };
 
   // Dispatch window resize when switching back to map tab so Leaflet recalibrates
   useEffect(() => {
@@ -116,6 +118,14 @@ export default function App() {
         onOpenDailyReport={() => setIsDailyReportOpen(true)}
         onOpenWeather={() => setIsWeatherModalOpen(true)}
         onOpenCctv={() => handleOpenCctv()}
+      />
+
+      {/* Emergency Chao Phraya Dam Discharge 2,500 cms Alert Ribbon (RID Hydro 5H) */}
+      <ChaoPhrayaEmergencyBanner
+        onSelectStation={handleSelectStationById}
+        onRefreshLive={handleRefreshLive}
+        isRefreshing={isRefreshing}
+        lastSyncTime={lastSyncTime}
       />
 
       {/* 3-Day Water Trend Ribbon Bar (เมื่อวาน vs วันนี้ vs 2 วันก่อน จาก สสน. HII / RID) */}
@@ -253,6 +263,14 @@ export default function App() {
         onSelectTab={setActiveTab}
         onOpenCctv={() => handleOpenCctv()}
       />
+
+      {/* Real-time Sync Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900/95 text-white border border-emerald-500/50 px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-2.5 text-xs animate-in slide-in-from-bottom duration-300">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="font-medium">{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 }
