@@ -3,6 +3,7 @@ import { HydrologicalStation } from '../types/hydrology';
 import { Flood2554ComparisonCard } from './Flood2554ComparisonCard';
 import { CHAO_PHRAYA_FOUR_DAMS_2554 } from '../data/flood2554Data';
 import { DamIcon } from './icons/DamIcon';
+import { ThreeDayWaterSummaryBar } from './ThreeDayWaterSummaryBar';
 import { 
   Search, 
   ArrowUpDown, 
@@ -17,12 +18,14 @@ import {
   Star,
   CheckCircle2,
   X,
-  FileCheck
+  FileCheck,
+  Video
 } from 'lucide-react';
 
 interface DamListProps {
   stations: HydrologicalStation[];
   onSelectStation: (station: HydrologicalStation) => void;
+  onOpenCctv?: (station: HydrologicalStation) => void;
 }
 
 const PROVINCE_TO_REGION: Record<string, string> = {
@@ -58,11 +61,12 @@ const REGION_LABELS: Record<string, string> = {
 export const DamList: React.FC<DamListProps> = ({
   stations,
   onSelectStation,
+  onOpenCctv,
 }) => {
   const dams = stations.filter((s) => s.type === 'dam' || s.type === 'reservoir');
 
   const [search, setSearch] = useState('');
-  const [filterKind, setFilterKind] = useState<'all' | 'major35' | 'dam' | 'reservoir'>('all');
+  const [filterKind, setFilterKind] = useState<'all' | 'major35' | 'dam' | 'reservoir' | 'cctv'>('all');
   const [selectedRegion, setSelectedRegion] = useState<string>('all');
   const [selectedBasin, setSelectedBasin] = useState('all');
   const [sortBy, setSortBy] = useState<'percent_desc' | 'percent_asc' | 'capacity_desc' | 'risk_2554' | 'buffer_2554'>('percent_desc');
@@ -107,6 +111,8 @@ export const DamList: React.FC<DamListProps> = ({
         ? true 
         : filterKind === 'major35'
         ? d.isMajorDam35 === true
+        : filterKind === 'cctv'
+        ? Boolean(d.cctv?.enabled)
         : d.type === filterKind;
 
     const matchBasin = selectedBasin === 'all' || d.basin === selectedBasin;
@@ -199,6 +205,14 @@ export const DamList: React.FC<DamListProps> = ({
             />
           </div>
         </div>
+      </div>
+
+      {/* 3-Day Water Trend Ribbon Bar */}
+      <div className="flex items-center justify-between">
+        <ThreeDayWaterSummaryBar />
+        <span className="text-[11px] text-[#86868b] font-mono hidden sm:inline">
+          รายงานสถานภาพน้ำเขื่อน สสน. (HII) & กรมชลประทาน
+        </span>
       </div>
 
       {/* Top Overview Cards */}
@@ -319,6 +333,21 @@ export const DamList: React.FC<DamListProps> = ({
             >
               <Droplet className="w-3.5 h-3.5 text-cyan-600" />
               <span>อ่างเก็บน้ำ ({dams.filter(d => d.type === 'reservoir').length})</span>
+            </button>
+            <button
+              onClick={() => setFilterKind(filterKind === 'cctv' ? 'all' : 'cctv')}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
+                filterKind === 'cctv'
+                  ? 'bg-rose-600 text-white shadow-sm font-bold ring-2 ring-rose-400'
+                  : 'text-rose-700 bg-rose-50/90 hover:bg-rose-100 border border-rose-200'
+              }`}
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+              </span>
+              <Video className="w-3.5 h-3.5" />
+              <span>กล้อง CCTV สด ({dams.filter(d => d.cctv?.enabled).length})</span>
             </button>
           </div>
         </div>
@@ -508,6 +537,23 @@ export const DamList: React.FC<DamListProps> = ({
                       เต็มความจุ {dam.telemetry.storageCapacityMcm.toLocaleString()}
                     </span>
                   </div>
+
+                  {dam.telemetry.diffYesterdayMcm !== undefined && (
+                    <div className="flex items-center justify-between text-[11px] pt-1.5 mt-1 border-t border-slate-100 font-mono">
+                      <span className="text-slate-500">
+                        เมื่อวาน: {dam.telemetry.storageYesterdayMcm?.toLocaleString()} ล้าน ม.³
+                      </span>
+                      <span className={`font-semibold ${
+                        dam.telemetry.diffYesterdayMcm > 0 
+                          ? 'text-emerald-600' 
+                          : dam.telemetry.diffYesterdayMcm < 0 
+                            ? 'text-blue-600' 
+                            : 'text-slate-500'
+                      }`}>
+                        {dam.telemetry.diffYesterdayMcm > 0 ? `+${dam.telemetry.diffYesterdayMcm}` : dam.telemetry.diffYesterdayMcm} ล้าน ม.³ ({dam.telemetry.diffYesterdayPercent && dam.telemetry.diffYesterdayPercent > 0 ? `+${dam.telemetry.diffYesterdayPercent}%` : `${dam.telemetry.diffYesterdayPercent}%`})
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* 2554 Mega Flood Benchmark Comparison Mini Card */}
@@ -542,9 +588,28 @@ export const DamList: React.FC<DamListProps> = ({
               </div>
 
               {/* Card Footer Action */}
-              <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-[#0071e3] font-medium">
-                <span>ดูรายละเอียด & การจำลองน้ำ</span>
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                {dam.cctv?.enabled && onOpenCctv ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenCctv(dam);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold border border-rose-200/80 flex items-center gap-1.5 transition-colors cursor-pointer"
+                    title="ส่องภาพกล้อง CCTV สดประจำเขื่อนนี้"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+                    <Video className="w-3.5 h-3.5 text-rose-600" />
+                    <span>ส่องกล้องสด ({dam.cctv.cameras.length} มุม)</span>
+                  </button>
+                ) : (
+                  <span className="text-[#86868b] text-[11px]">สถานีโทรมาตรทางการ</span>
+                )}
+
+                <span className="text-[#0071e3] font-medium flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                  <span>ดูรายละเอียด</span>
+                  <ChevronRight className="w-4 h-4" />
+                </span>
               </div>
             </div>
           );

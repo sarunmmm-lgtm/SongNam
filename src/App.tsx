@@ -19,13 +19,9 @@ import { ShareModal } from './components/ShareModal';
 import { MarineTideModal } from './components/MarineTideModal';
 import { DailyReportExportModal } from './components/DailyReportExportModal';
 import { WeatherModal } from './components/WeatherModal';
+import { LiveCctvModal } from './components/LiveCctvModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
-import { 
-  Compass,
-  Waves,
-  FileText,
-  Sun
-} from 'lucide-react';
+import { ThreeDayWaterSummaryBar } from './components/ThreeDayWaterSummaryBar';
 
 export default function App() {
   const [stations, setStations] = useState<HydrologicalStation[]>(INITIAL_STATIONS);
@@ -37,6 +33,13 @@ export default function App() {
   const [isMarineTideOpen, setIsMarineTideOpen] = useState(false);
   const [isDailyReportOpen, setIsDailyReportOpen] = useState(false);
   const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
+  const [isCctvModalOpen, setIsCctvModalOpen] = useState(false);
+  const [cctvStation, setCctvStation] = useState<HydrologicalStation | null>(null);
+
+  const handleOpenCctv = (station?: HydrologicalStation) => {
+    setCctvStation(station || null);
+    setIsCctvModalOpen(true);
+  };
 
   // Live real-time telemetry fluctuation (Simulates live IoT streams)
   useEffect(() => {
@@ -112,56 +115,33 @@ export default function App() {
         onOpenMarineTide={() => setIsMarineTideOpen(true)}
         onOpenDailyReport={() => setIsDailyReportOpen(true)}
         onOpenWeather={() => setIsWeatherModalOpen(true)}
+        onOpenCctv={() => handleOpenCctv()}
       />
+
+      {/* 3-Day Water Trend Ribbon Bar (เมื่อวาน vs วันนี้ vs 2 วันก่อน จาก สสน. HII / RID) */}
+      <div className="bg-slate-950 text-white px-3 sm:px-6 py-2 border-b border-slate-800 shadow-xs">
+        <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-3 flex-wrap">
+          <ThreeDayWaterSummaryBar />
+          <div className="text-[11px] text-slate-400 font-mono hidden md:flex items-center gap-1.5 shrink-0">
+            <span>ฐานข้อมูลตรงตาม: rid_bigcm_raw.php (สสน. / กรมชลประทาน)</span>
+          </div>
+        </div>
+      </div>
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
         <div className={activeTab === 'map' ? 'space-y-3 block' : 'hidden'}>
-          {/* Section Header with quick actions */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-0.5">
-            <div>
-              <h1 className="text-lg sm:text-xl font-semibold text-[#1d1d1f] tracking-tight">
-                แผนที่สถานการณ์น้ำทั่วประเทศ
-              </h1>
-              <p className="text-xs text-[#86868b]">
-                ระดับน้ำในเขื่อน อ่างเก็บน้ำ ลำคลอง และเรดาร์ตรวจฝนสดแบบเรียลไทม์ · {stations.length} จุดตรวจวัด
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => setIsWeatherModalOpen(true)}
-                className="px-3 py-1.5 rounded-lg bg-blue-50/80 hover:bg-blue-100 text-[#0071e3] border border-blue-200/80 shadow-xs text-xs flex items-center gap-1.5 transition-colors font-medium"
-              >
-                <Sun className="w-3.5 h-3.5 text-amber-500" />
-                <span>สภาพอากาศสด</span>
-              </button>
-
-              <button
-                onClick={() => setIsMarineTideOpen(true)}
-                className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-blue-700 border border-slate-200/80 shadow-xs text-xs flex items-center gap-1.5 transition-colors font-medium"
-              >
-                <Waves className="w-3.5 h-3.5 text-blue-600" />
-                <span>น้ำทะเลหนุน & ความเค็ม</span>
-              </button>
-
-              <button
-                onClick={() => setIsDailyReportOpen(true)}
-                className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-800 border border-slate-200/80 shadow-xs text-xs flex items-center gap-1.5 transition-colors font-medium"
-              >
-                <FileText className="w-3.5 h-3.5 text-slate-600" />
-                <span>ส่งออกรายงาน</span>
-              </button>
-
-              <button
-                onClick={() => setIsLocationSearchOpen(true)}
-                className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-[#1d1d1f] border border-slate-200/80 shadow-xs text-xs flex items-center gap-1.5 transition-colors font-medium"
-              >
-                <Compass className="w-3.5 h-3.5 text-[#0071e3]" />
-                <span>ตรวจเช็คเขื่อนที่กระทบคุณ</span>
-              </button>
-            </div>
+          {/* Section Header */}
+          <div className="pb-0.5">
+            <h1 className="text-lg sm:text-xl font-semibold text-[#1d1d1f] tracking-tight">
+              แผนที่สถานการณ์น้ำทั่วประเทศ
+            </h1>
+            <p className="text-xs text-[#86868b]">
+              ระดับน้ำในเขื่อน อ่างเก็บน้ำ ลำคลอง และเรดาร์ตรวจฝนสดแบบเรียลไทม์ · {stations.length} จุดตรวจวัด
+            </p>
           </div>
+
+          {/* Interactive Map Component with its unified floating toolbar */}
 
           <InteractiveMap
             stations={stations}
@@ -171,6 +151,7 @@ export default function App() {
             onOpenMarineTide={() => setIsMarineTideOpen(true)}
             onOpenDailyReport={() => setIsDailyReportOpen(true)}
             onOpenWeather={() => setIsWeatherModalOpen(true)}
+            onOpenCctv={handleOpenCctv}
           />
         </div>
 
@@ -178,6 +159,7 @@ export default function App() {
           <DamList
             stations={stations}
             onSelectStation={setSelectedStation}
+            onOpenCctv={handleOpenCctv}
           />
         )}
 
@@ -185,6 +167,7 @@ export default function App() {
           <CanalList
             stations={stations}
             onSelectStation={setSelectedStation}
+            onOpenCctv={handleOpenCctv}
           />
         )}
 
@@ -203,6 +186,18 @@ export default function App() {
           station={selectedStation}
           onClose={() => setSelectedStation(null)}
           onRequestAiAnalysis={setAiStation}
+        />
+      )}
+
+      {/* Live CCTV Viewer Modal (Dams & Major Rivers Only) */}
+      {isCctvModalOpen && (
+        <LiveCctvModal
+          station={cctvStation}
+          allStations={stations}
+          onClose={() => setIsCctvModalOpen(false)}
+          onSelectStation={(st) => {
+            setCctvStation(st);
+          }}
         />
       )}
 
@@ -252,10 +247,11 @@ export default function App() {
         }
       />
 
-      {/* Mobile Sticky Bottom Navigation */}
+      {/* Mobile Sticky Bottom Navigation (Sleek Modern Floating Dock) */}
       <MobileBottomNav
         activeTab={activeTab}
         onSelectTab={setActiveTab}
+        onOpenCctv={() => handleOpenCctv()}
       />
     </div>
   );

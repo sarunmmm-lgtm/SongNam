@@ -9,19 +9,23 @@ import {
   ArrowUpCircle, 
   ShieldAlert, 
   Sparkles,
-  Gauge
+  Gauge,
+  Video,
+  Maximize2
 } from 'lucide-react';
 
 interface StationDetailModalProps {
   station: HydrologicalStation;
   onClose: () => void;
   onRequestAiAnalysis: (station: HydrologicalStation) => void;
+  onOpenCctv?: (station: HydrologicalStation) => void;
 }
 
 export const StationDetailModal: React.FC<StationDetailModalProps> = ({
   station,
   onClose,
   onRequestAiAnalysis,
+  onOpenCctv,
 }) => {
   const { telemetry, risk } = station;
   const isCritical = risk.alertLevel === 'critical';
@@ -200,6 +204,42 @@ export const StationDetailModal: React.FC<StationDetailModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Real-time Yesterday Comparison (HII Raw Telemetry) */}
+          {telemetry.diffYesterdayMcm !== undefined && (
+            <div className="bg-blue-50/70 border border-blue-200/80 rounded-2xl p-3.5 text-xs font-mono">
+              <div className="flex items-center justify-between font-sans text-xs font-bold text-blue-900 mb-2">
+                <span>📊 เปรียบเทียบปริมาตรน้ำกับเมื่อวาน (รายงานทางการ สสน. HII)</span>
+                <span className="text-[10px] text-blue-600 font-normal">อัปเดต 1 ต.ค. 2569</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-slate-800">
+                <div className="bg-white p-2.5 rounded-xl border border-blue-100">
+                  <div className="text-[10px] text-slate-400">เมื่อวาน</div>
+                  <div className="text-sm font-bold text-slate-700 mt-0.5">
+                    {telemetry.storageYesterdayMcm?.toLocaleString()} ล้าน ม.³
+                  </div>
+                </div>
+                <div className="bg-white p-2.5 rounded-xl border border-blue-100">
+                  <div className="text-[10px] text-slate-400">วันนี้</div>
+                  <div className="text-sm font-bold text-blue-600 mt-0.5">
+                    {telemetry.currentStorageMcm?.toLocaleString()} ล้าน ม.³
+                  </div>
+                </div>
+                <div className="bg-white p-2.5 rounded-xl border border-blue-100">
+                  <div className="text-[10px] text-slate-400">ผลต่างสุทธิ</div>
+                  <div className={`text-sm font-bold mt-0.5 ${telemetry.diffYesterdayMcm > 0 ? 'text-emerald-600' : 'text-blue-600'}`}>
+                    {telemetry.diffYesterdayMcm > 0 ? `+${telemetry.diffYesterdayMcm}` : telemetry.diffYesterdayMcm} ล้าน ม.³
+                  </div>
+                </div>
+                <div className="bg-white p-2.5 rounded-xl border border-blue-100">
+                  <div className="text-[10px] text-slate-400">อัตราเปลี่ยนแปลง</div>
+                  <div className={`text-sm font-bold mt-0.5 ${telemetry.diffYesterdayPercent && telemetry.diffYesterdayPercent > 0 ? 'text-emerald-600' : 'text-blue-600'}`}>
+                    {telemetry.diffYesterdayPercent && telemetry.diffYesterdayPercent > 0 ? `+${telemetry.diffYesterdayPercent}%` : `${telemetry.diffYesterdayPercent}%`}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* 2554 Flood Comparison Section */}
           <Flood2554ComparisonCard station={station} />

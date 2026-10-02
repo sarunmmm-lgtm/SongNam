@@ -7,7 +7,8 @@ import {
   Compass,
   Share2,
   FileText,
-  Sun
+  Sun,
+  Video
 } from 'lucide-react';
 import { HydrologicalStation } from '../types/hydrology';
 
@@ -22,6 +23,7 @@ interface NavbarProps {
   onOpenMarineTide?: () => void;
   onOpenDailyReport?: () => void;
   onOpenWeather?: () => void;
+  onOpenCctv?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -33,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenMarineTide,
   onOpenDailyReport,
   onOpenWeather,
+  onOpenCctv,
 }) => {
   const [timeStr, setTimeStr] = useState<string>('');
 
@@ -134,6 +137,23 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2 text-xs">
+          {/* Live Hydro CCTV Button (Dams & Rivers only) */}
+          {onOpenCctv && (
+            <button
+              onClick={onOpenCctv}
+              className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 shadow-xs flex items-center gap-1.5 transition-all font-semibold cursor-pointer group"
+              title="ส่องกล้อง CCTV สดเฉพาะจุดที่เป็นเขื่อนหรือแม่น้ำ"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+              </span>
+              <Video className="w-3.5 h-3.5 text-rose-600 group-hover:scale-110 transition-transform" />
+              <span className="hidden sm:inline">กล้อง CCTV สด</span>
+              <span className="sm:hidden font-bold">CCTV</span>
+            </button>
+          )}
+
           {/* Check Impacting Dams */}
           <button
             onClick={onOpenLocationSearch}

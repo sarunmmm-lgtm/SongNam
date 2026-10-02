@@ -12,6 +12,11 @@ export interface WaterTelemetry {
   outflowRateCms: number; // น้ำระบายออก (ลบ.ม./วินาที)
   rainfall24hMm: number; // ฝนสะสม 24 ชม. (มม.)
   flowVelocityMs?: number; // ความเร็วกระแสน้ำ (ม./วินาที)
+  inflowMcmToday?: number; // น้ำไหลลงอ่างวันนี้ (ล้าน ลบ.ม.)
+  outflowMcmToday?: number; // น้ำระบายวันนี้ (ล้าน ลบ.ม.)
+  storageYesterdayMcm?: number; // ปริมาตรน้ำเมื่อวาน (ล้าน ลบ.ม.)
+  diffYesterdayMcm?: number; // เพิ่มขึ้น/ลดลงจากเมื่อวาน (ล้าน ลบ.ม.)
+  diffYesterdayPercent?: number; // เพิ่มขึ้น/ลดลงจากเมื่อวาน (%)
   lastUpdated: string; // ISO หรือ formatted time
 }
 
@@ -37,6 +42,28 @@ export interface Flood2554Benchmark {
   historicalContext: string; // บริบทสถานการณ์จริงปี 2554
 }
 
+export interface HydroCctvCamera {
+  id: string;
+  name: string;
+  angleName: string; // เช่น "มุมมองหน้าประตูระบายน้ำ", "มุมมองท้ายน้ำ", "มุมมองสันเขื่อน/สปิลเวย์"
+  imageUrl: string;
+  videoUrl?: string; // Direct motion stream URL (.webm / .mp4) showing real flowing water
+  youtubeLiveId?: string; // Real YouTube live broadcast ID
+  officialPortalUrl?: string; // Direct official government portal URL
+  status: 'live' | 'buffering' | 'offline';
+  waterLevelText?: string;
+  streamFps?: number;
+}
+
+export interface HydroCctvInfo {
+  enabled: boolean;
+  operator: string; // เช่น "กรมชลประทาน (RID CCTV)", "กฟผ. (EGAT CCTV)", "สำนักการระบายน้ำ กทม."
+  cameras: HydroCctvCamera[];
+  lastPingSeconds: number;
+  officialPortalUrl?: string; // Direct official government live streaming portal
+  agencyPortalName?: string; // e.g. "ระบบ CCTV กฟผ.", "ระบบ CCTV ชลประทาน"
+}
+
 export interface HydrologicalStation {
   id: string;
   name: string;
@@ -51,6 +78,7 @@ export interface HydrologicalStation {
   lng: number;
   isMajorDam35?: boolean; // 1 ใน 35 อ่างเก็บน้ำ/เขื่อนขนาดใหญ่ของประเทศไทย (กฟผ. 10 แห่ง + ชลประทาน 25 แห่ง)
   operator?: 'RID' | 'EGAT' | 'DWR' | 'BMA'; // หน่วยงานผู้ดูแล (กฟผ., กรมชลประทาน ฯลฯ)
+  cctv?: HydroCctvInfo; // ข้อมูลกล้อง CCTV สดประจำเขื่อนหรือแม่น้ำ
   telemetry: WaterTelemetry;
   risk: FloodRiskAssessment;
   history24h: { time: string; levelMsl: number; percent: number; rainfall: number }[];

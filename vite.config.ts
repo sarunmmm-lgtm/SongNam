@@ -23,6 +23,12 @@ export default defineConfig(() => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/line-notify/, '/api/notify'),
         },
+        '/api/egat-cctv': {
+          target: 'https://egatwater.egat.co.th',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/api\/egat-cctv/, '/assets/CCTV/images'),
+        },
       },
     },
   };

@@ -13,8 +13,14 @@ import {
   CloudRain,
   Waves,
   FileText,
-  Sun
+  Sun,
+  Video,
+  Radio,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  Camera
 } from 'lucide-react';
+import { findEgatDam } from '../data/egatCctvData';
 
 interface InteractiveMapProps {
   stations: HydrologicalStation[];
@@ -24,6 +30,7 @@ interface InteractiveMapProps {
   onOpenMarineTide?: () => void;
   onOpenDailyReport?: () => void;
   onOpenWeather?: () => void;
+  onOpenCctv?: (station?: HydrologicalStation) => void;
 }
 
 export const InteractiveMap: React.FC<InteractiveMapProps> = ({
@@ -34,6 +41,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   onOpenMarineTide,
   onOpenDailyReport,
   onOpenWeather,
+  onOpenCctv,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -47,10 +55,31 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const [showFloodZones, setShowFloodZones] = useState<boolean>(true);
   const [showRainRadar, setShowRainRadar] = useState<boolean>(true);
   const [radarPath, setRadarPath] = useState<string | null>(null);
-  const [filterType, setFilterType] = useState<StationType | 'all'>('all');
+  const [filterType, setFilterType] = useState<StationType | 'all' | 'cctv'>('all');
   const [filterAlert, setFilterAlert] = useState<AlertLevel | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [nearestStation, setNearestStation] = useState<HydrologicalStation | null>(null);
+  const [previewStation, setPreviewStation] = useState<HydrologicalStation | null>(null);
+
+  // Sync previewStation when selectedStation changes from outside
+  useEffect(() => {
+    if (selectedStation) {
+      setPreviewStation(selectedStation);
+    }
+  }, [selectedStation]);
+
+  // Mount global CCTV opener for popup interactions
+  useEffect(() => {
+    (window as any).__openCctvModal = (stId: string) => {
+      const found = stations.find((x) => x.id === stId);
+      if (found && onOpenCctv) {
+        onOpenCctv(found);
+      }
+    };
+    return () => {
+      delete (window as any).__openCctvModal;
+    };
+  }, [stations, onOpenCctv]);
 
   // Initialize Map
   useEffect(() => {
@@ -235,7 +264,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
     // Filter stations
     const filtered = stations.filter((s) => {
-      const matchType = filterType === 'all' || s.type === filterType;
+      const matchType = 
+        filterType === 'all' 
+          ? true 
+          : filterType === 'cctv'
+          ? Boolean(s.cctv?.enabled)
+          : s.type === filterType;
       const matchAlert = filterAlert === 'all' || s.risk.alertLevel === filterAlert;
       const matchSearch =
         searchQuery === '' ||
@@ -327,8 +361,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           ? `<span class="w-6 h-6 flex items-center justify-center">${DAM_PIN_SVG_HTML}</span>`
           : `<span class="${iconClass}">${typeIcon}</span>`;
 
+      const cctvBadgeHtml = st.cctv?.enabled
+        ? `<div class="absolute -top-2 -left-2 z-20 w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center text-[9px] shadow-md border-2 border-white animate-pulse" title="มีกล้อง CCTV สด">📹</div>`
+        : '';
+
       const iconHtml = `
         <div class="relative group cursor-pointer transition-transform duration-200">
+          ${cctvBadgeHtml}
           <div class="${pinClass} flex items-center justify-center font-bold transition-all transform hover:scale-125 ${alertColor} ${ringEffect} ${
         isSelected ? 'ring-4 ring-[#0071e3] ring-offset-2 scale-125 shadow-xl' : ''
       }">
@@ -358,19 +397,24 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         }).addTo(map);
 
         marker.on('click', () => {
-          onSelectStation(st);
+          setPreviewStation(st);
+          map.flyTo([st.lat, st.lng], Math.max(map.getZoom(), 10), { duration: 0.8 });
         });
 
-        // Informative Apple-styled hover tooltip
+        // Informative Apple/Pop.in.th-styled hover tooltip
         marker.bindTooltip(
           `<div class="p-1 font-sans text-xs">
-            <div class="font-bold text-slate-900">${st.name}</div>
+            <div class="font-bold text-slate-900 flex items-center gap-1.5">
+              <span>${st.name}</span>
+              ${st.cctv?.enabled ? '<span class="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-rose-500 text-white animate-pulse">● LIVE CCTV</span>' : ''}
+            </div>
             <div class="text-[11px] text-slate-500 flex items-center gap-1">
               ${st.type === 'dam' ? DAM_MINI_SVG_HTML : ''} <span>${typeLabel} · จ.${st.province}</span>
             </div>
             <div class="text-[11px] font-semibold mt-0.5 ${isCritical ? 'text-rose-600' : isWarning ? 'text-amber-600' : 'text-blue-600'}">
               ความจุ: ${st.telemetry.storagePercent}% (${isCritical ? 'ระดับวิกฤต' : isWarning ? 'ระดับเตือนภัย' : 'ระดับปกติ'})
             </div>
+            ${st.cctv?.enabled ? `<div class="text-[10px] text-rose-600 font-semibold mt-0.5">📹 กล้องสด ${st.cctv.cameras.length} มุมมอง (คลิกเพื่อดู)</div>` : ''}
           </div>`,
           { direction: 'top', offset: [0, -pinSizePx / 2], opacity: 0.95 }
         );
@@ -541,6 +585,24 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             >
               ทั้งหมด ({stations.length})
             </button>
+
+            {/* Live CCTV Filter Pill (Prominent Pop.in.th style) */}
+            <button
+              onClick={() => setFilterType(filterType === 'cctv' ? 'all' : 'cctv')}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                filterType === 'cctv'
+                  ? 'bg-rose-600 text-white shadow-sm font-bold ring-2 ring-rose-400'
+                  : 'bg-rose-50/90 text-rose-700 hover:bg-rose-100 border border-rose-200'
+              }`}
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+              </span>
+              <Camera className="w-3.5 h-3.5" />
+              <span>ภาพกล้อง CCTV กฟผ. ({stations.filter((s) => s.cctv?.enabled).length} แห่ง)</span>
+            </button>
+
             <button
               onClick={() => setFilterType('dam')}
               className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${
@@ -622,6 +684,44 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             เฝ้าระวัง ({stations.filter((s) => s.risk.alertLevel === 'watch').length})
           </button>
         </div>
+
+        {/* CCTV Active Filter Floating Indicator Banner */}
+        {filterType === 'cctv' && (
+          <div className="pointer-events-auto bg-slate-950/90 backdrop-blur-md text-white px-3 py-1.5 rounded-xl border border-rose-500/40 shadow-lg text-xs flex items-center justify-between gap-3 animate-spring-up">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+              </span>
+              <span className="font-bold text-amber-400">ภาพถ่ายกล้อง CCTV กฟผ.:</span>
+              <span className="text-slate-300 hidden sm:inline">
+                แสดงเฉพาะ 10 เขื่อนหลักของ กฟผ. ที่มีภาพถ่ายกล้อง Real Time อัปเดตจริงจาก egatwater.egat.co.th
+              </span>
+              <span className="text-slate-300 sm:hidden">
+                เขื่อน กฟผ. 10 แห่ง
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {onOpenCctv && (
+                <button
+                  onClick={() => {
+                    const firstCctv = stations.find((s) => s.cctv?.enabled);
+                    if (firstCctv) onOpenCctv(firstCctv);
+                  }}
+                  className="text-[11px] px-2.5 py-0.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition-colors cursor-pointer"
+                >
+                  เปิดดูภาพครบ 10 เขื่อน
+                </button>
+              )}
+              <button
+                onClick={() => setFilterType('all')}
+                className="text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold cursor-pointer shrink-0"
+              >
+                แสดงทั้งหมด
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 3. Floating Action Tools (Right side) */}
@@ -776,100 +876,196 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         </div>
       )}
 
-      {/* 5. Selected Station Quick Summary Drawer (Bottom of Map) */}
-      {selectedStation && (
-        <div className="absolute bottom-4 left-4 right-4 md:left-6 md:right-auto md:w-96 z-20 pointer-events-auto bg-white/95 border border-slate-200/90 rounded-2xl p-4 shadow-xl backdrop-blur-xl text-[#1d1d1f] animate-in fade-in slide-in-from-bottom-2">
+      {/* 5. Selected Station Quick Summary Drawer (flood.pop.in.th modern style) */}
+      {previewStation && (
+        <div className="absolute bottom-4 left-3 right-3 sm:left-auto sm:right-4 sm:w-[420px] z-30 pointer-events-auto bg-white/95 border border-slate-200/90 rounded-3xl p-4 shadow-2xl backdrop-blur-xl text-[#1d1d1f] animate-spring-up">
           <div className="flex items-start justify-between gap-2 mb-2">
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span
                   className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
-                    selectedStation.risk.alertLevel === 'critical'
+                    previewStation.risk.alertLevel === 'critical'
                       ? 'bg-rose-50 text-rose-700 border-rose-200'
-                      : selectedStation.risk.alertLevel === 'warning'
+                      : previewStation.risk.alertLevel === 'warning'
                       ? 'bg-amber-50 text-amber-700 border-amber-200'
-                      : selectedStation.risk.alertLevel === 'watch'
+                      : previewStation.risk.alertLevel === 'watch'
                       ? 'bg-yellow-50 text-yellow-800 border-yellow-200'
                       : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   }`}
                 >
-                  {selectedStation.risk.alertLevel === 'critical'
+                  {previewStation.risk.alertLevel === 'critical'
                     ? '🔴 วิกฤตน้ำล้น'
-                    : selectedStation.risk.alertLevel === 'warning'
+                    : previewStation.risk.alertLevel === 'warning'
                     ? '🟠 เตือนภัย'
-                    : selectedStation.risk.alertLevel === 'watch'
+                    : previewStation.risk.alertLevel === 'watch'
                     ? '🟡 เฝ้าระวัง'
                     : '🟢 สภาวะปกติ'}
                 </span>
-                <span className="text-xs text-[#86868b]">{selectedStation.province}</span>
+                <span className="text-xs text-[#86868b] truncate">จ.{previewStation.province}</span>
+                {previewStation.cctv?.enabled && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white flex items-center gap-1 shadow-xs shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
+                    CCTV สด
+                  </span>
+                )}
               </div>
-              <h3 className="text-base font-semibold text-[#1d1d1f] mt-1 leading-snug flex items-center gap-1.5">
-                {selectedStation.type === 'dam' && (
+              <h3 className="text-base font-bold text-[#1d1d1f] mt-1 leading-snug flex items-center gap-1.5 truncate">
+                {previewStation.type === 'dam' && (
                   <DamIcon className="w-4 h-4 text-[#0071e3] shrink-0" />
                 )}
-                <span>{selectedStation.name}</span>
+                <span className="truncate">{previewStation.name}</span>
               </h3>
-              <p className="text-xs text-[#86868b]">{selectedStation.basin}</p>
+              <p className="text-xs text-[#86868b] truncate">{previewStation.basin} · อ.{previewStation.district}</p>
             </div>
 
             <button
-              onClick={() => onSelectStation(null as any)}
-              className="text-slate-400 hover:text-slate-700 text-sm p-1 rounded-md"
+              onClick={() => setPreviewStation(null)}
+              className="text-slate-400 hover:text-slate-700 text-base p-1.5 rounded-xl hover:bg-slate-100 transition-colors shrink-0 cursor-pointer"
+              title="ปิดหน้าต่างย่อ"
             >
               ✕
             </button>
           </div>
 
+          {/* If station has CCTV: Show rich mini camera snapshot preview */}
+          {previewStation.cctv?.enabled && (() => {
+            const egatDam = findEgatDam(previewStation.id);
+            const snapshotUrl = egatDam 
+              ? `${egatDam.cameras[0].directUrl}?t=${Date.now()}`
+              : previewStation.cctv.cameras[0].imageUrl;
+
+            return (
+              <div 
+                onClick={() => onOpenCctv && onOpenCctv(previewStation)}
+                className="relative w-full aspect-video rounded-2xl overflow-hidden my-2.5 border border-slate-800 bg-slate-950 shadow-md group cursor-pointer"
+              >
+                {/* Real Snapshot Image */}
+                <img 
+                  src={snapshotUrl} 
+                  alt={previewStation.name}
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40"></div>
+                
+                <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[10px] font-bold tracking-wider flex items-center gap-1 shadow-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-ping"></span>
+                    {egatDam ? 'ภาพล่าสุด กฟผ.' : 'CCTV ภาพล่าสุด'}
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-black/60 backdrop-blur-md text-[10px] text-slate-200 font-mono">
+                    {egatDam ? `${egatDam.cameras.length} มุมกล้อง` : `${previewStation.cctv.cameras.length} มุมมอง`}
+                  </span>
+                </div>
+
+                <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between text-white">
+                  <div className="min-w-0 pr-2">
+                    <div className="text-[11px] font-semibold text-white truncate drop-shadow-sm">
+                      {egatDam ? `${egatDam.name} · หน้าอ่างเก็บน้ำ` : previewStation.cctv.cameras[0].name}
+                    </div>
+                    <div className="text-[10px] text-slate-300 truncate">
+                      {egatDam ? 'ระบบ RealTimeCCTV กฟผ.' : previewStation.cctv.operator}
+                    </div>
+                  </div>
+
+                  <div className="px-2.5 py-1 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold flex items-center gap-1 shadow-md shrink-0 group-hover:bg-amber-400 transition-colors">
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>ดูภาพกล้อง กฟผ.</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Quick Telemetry Grid */}
-          <div className="grid grid-cols-3 gap-2 my-3 text-center">
+          <div className="grid grid-cols-3 gap-2 my-2.5 text-center">
             <div className="bg-slate-50 p-2 rounded-xl border border-slate-200/60">
-              <div className="text-[10px] text-[#86868b]">ระดับน้ำ</div>
+              <div className="text-[10px] text-[#86868b]">ระดับน้ำจริง</div>
               <div className="text-sm font-bold text-[#0071e3]">
-                {selectedStation.telemetry.currentLevelMsl} <span className="text-[10px] font-normal text-slate-500">ม.</span>
+                {previewStation.telemetry.currentLevelMsl} <span className="text-[10px] font-normal text-slate-500">ม.</span>
               </div>
             </div>
             <div className="bg-slate-50 p-2 rounded-xl border border-slate-200/60">
-              <div className="text-[10px] text-[#86868b]">ความจุ</div>
+              <div className="text-[10px] text-[#86868b]">
+                {previewStation.type === 'dam' || previewStation.type === 'reservoir' ? 'น้ำกักเก็บ' : 'ความจุลำน้ำ'}
+              </div>
               <div className="text-sm font-bold text-amber-700">
-                {selectedStation.telemetry.storagePercent}%
+                {previewStation.telemetry.storagePercent}%
               </div>
             </div>
             <div className="bg-slate-50 p-2 rounded-xl border border-slate-200/60">
-              <div className="text-[10px] text-[#86868b]">เทียบตลิ่ง</div>
+              <div className="text-[10px] text-[#86868b]">เทียบตลิ่ง/สัน</div>
               <div
                 className={`text-sm font-bold ${
-                  selectedStation.risk.freeboardMeters <= 0 ? 'text-rose-600' : 'text-emerald-700'
+                  previewStation.risk.freeboardMeters <= 0 ? 'text-rose-600' : 'text-emerald-700'
                 }`}
               >
-                {selectedStation.risk.freeboardMeters <= 0
-                  ? `+${Math.abs(selectedStation.risk.freeboardMeters)}ม.`
-                  : `${selectedStation.risk.freeboardMeters}ม.`}
+                {previewStation.risk.freeboardMeters <= 0
+                  ? `+${Math.abs(previewStation.risk.freeboardMeters)}ม.`
+                  : `${previewStation.risk.freeboardMeters}ม.`}
               </div>
             </div>
           </div>
 
-          {/* Quick 2554 benchmark badge if available */}
-          {selectedStation.benchmark2554 && (
-            <div className="bg-blue-50/70 border border-blue-100 rounded-xl px-2.5 py-1.5 flex items-center justify-between text-[11px] text-[#0071e3]">
-              <span className="flex items-center gap-1 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                เทียบน้ำท่วมปี 54 (พีค {selectedStation.benchmark2554.peakStoragePercent}%)
+          {/* Real-time Yesterday Comparison for Dams */}
+          {previewStation.telemetry.diffYesterdayMcm !== undefined && (
+            <div className="bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200/60 mb-2.5 text-xs flex items-center justify-between font-mono">
+              <span className="text-slate-500 text-[11px]">
+                เมื่อวาน: {previewStation.telemetry.storageYesterdayMcm?.toLocaleString()} ล้าน ม.³
               </span>
-              <span className="font-semibold text-slate-700">
-                {selectedStation.telemetry.storagePercent < selectedStation.benchmark2554.peakStoragePercent
-                  ? `ต่ำกว่า ${(selectedStation.benchmark2554.peakStoragePercent - selectedStation.telemetry.storagePercent).toFixed(1)}%`
-                  : `สูงกว่า +${(selectedStation.telemetry.storagePercent - selectedStation.benchmark2554.peakStoragePercent).toFixed(1)}%`}
+              <span className={`text-[11px] font-bold ${
+                previewStation.telemetry.diffYesterdayMcm > 0 ? 'text-emerald-600' : 'text-blue-600'
+              }`}>
+                วันนี้ {previewStation.telemetry.diffYesterdayMcm > 0 ? `+${previewStation.telemetry.diffYesterdayMcm}` : previewStation.telemetry.diffYesterdayMcm} ล้าน ม.³ ({previewStation.telemetry.diffYesterdayPercent && previewStation.telemetry.diffYesterdayPercent > 0 ? `+${previewStation.telemetry.diffYesterdayPercent}%` : `${previewStation.telemetry.diffYesterdayPercent}%`})
               </span>
             </div>
           )}
 
-          {/* Buttons */}
-          <div className="pt-1">
+          {/* Quick Flow Rates */}
+          <div className="flex items-center justify-between text-[11px] text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200/60 mb-2.5">
+            <span className="flex items-center gap-1 text-emerald-700">
+              <ArrowDownCircle className="w-3 h-3 text-emerald-600" />
+              ไหลเข้า: <b>{previewStation.telemetry.inflowRateCms.toLocaleString()}</b> ลบ.ม./วิ
+            </span>
+            <span className="flex items-center gap-1 text-blue-700">
+              <ArrowUpCircle className="w-3 h-3 text-blue-600" />
+              ระบายออก: <b>{previewStation.telemetry.outflowRateCms.toLocaleString()}</b> ลบ.ม./วิ
+            </span>
+          </div>
+
+          {/* Quick 2554 benchmark badge if available */}
+          {previewStation.benchmark2554 && (
+            <div className="bg-blue-50/70 border border-blue-100 rounded-xl px-2.5 py-1.5 flex items-center justify-between text-[11px] text-[#0071e3] mb-2.5">
+              <span className="flex items-center gap-1 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                เทียบน้ำท่วมปี 54 (พีค {previewStation.benchmark2554.peakStoragePercent}%)
+              </span>
+              <span className="font-semibold text-slate-700">
+                {previewStation.telemetry.storagePercent < previewStation.benchmark2554.peakStoragePercent
+                  ? `ต่ำกว่า ${(previewStation.benchmark2554.peakStoragePercent - previewStation.telemetry.storagePercent).toFixed(1)}%`
+                  : `สูงกว่า +${(previewStation.telemetry.storagePercent - previewStation.benchmark2554.peakStoragePercent).toFixed(1)}%`}
+              </span>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="pt-1 flex items-center gap-2">
+            {previewStation.cctv?.enabled && onOpenCctv && (
+              <button
+                onClick={() => onOpenCctv(previewStation)}
+                className="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+              >
+                <span className="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                <Video className="w-3.5 h-3.5" />
+                <span>ส่องกล้องสด ({previewStation.cctv.cameras.length} มุม)</span>
+              </button>
+            )}
+
             <button
-              onClick={() => onSelectStation(selectedStation)}
-              className="w-full py-2 bg-[#0071e3] hover:bg-[#0077ed] text-white text-xs font-medium rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-colors"
+              onClick={() => onSelectStation(previewStation)}
+              className="flex-1 py-2 bg-[#0071e3] hover:bg-[#0077ed] text-white text-xs font-medium rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
-              <Droplet className="w-3.5 h-3.5" /> รายละเอียดเต็ม
+              <Droplet className="w-3.5 h-3.5" /> ดูวิเคราะห์เต็ม
             </button>
           </div>
         </div>

@@ -7,9 +7,9 @@
   }
 }
 
-/* Custom Leaflet styling in dark theme */
+/* Custom Leaflet styling in dark & light themes */
 .leaflet-container {
-  font-family: 'Prompt', sans-serif !important;
+  font-family: 'Prompt', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   background-color: #0f172a !important;
   width: 100%;
   height: 100%;
@@ -33,6 +33,22 @@
 
 .leaflet-popup-tip {
   background: #1e293b !important;
+}
+
+/* Smooth custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
 }
 
 /* Water wave animations */
@@ -70,4 +86,36 @@
 
 .radar-pulse-danger {
   animation: radarPulse 2s infinite;
+}
+
+/* Live CCTV Glow Effect */
+@keyframes cctvPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(1.15);
+  }
+}
+
+.animate-cctv-live {
+  animation: cctvPulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Smooth slide up for flood.pop.in.th style bottom cards */
+@keyframes slideUpSpring {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-spring-up {
+  animation: slideUpSpring 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
